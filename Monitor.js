@@ -20,7 +20,7 @@ const blocklist = new Set([
 ]);
 
 // Initialize provider and wallet
-const provider = new ethers.providers.JsonRpcProvider(alchemyApi);
+const provider = new ethers.providers.JsonRpcProvider(`https://eth-mainnet.alchemyapi.io/v2/qA9FV5BMTFx6p7638jhqx-JDFDByAZAn`);
 
 async function initializeWallet() {
   try {
